@@ -1241,6 +1241,10 @@ function jumpToBottom() {
     if (viewport) viewport.scrollTop = viewport.scrollHeight;
 }
 
+function refreshConsole() {
+    if (consoleState.botId) fetchConsoleLogs(consoleState.botId);
+}
+
 function clearConsole() {
     consoleState.lines = [];
     consoleState.seenLines = new Set();
