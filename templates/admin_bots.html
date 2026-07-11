@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - All Bots | NEXUS BotHost</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg:       #0a0c0e;
+            --surface:  #111417;
+            --panel:    #15181c;
+            --border:   #262b30;
+            --border-hi:#3a4147;
+            --text:     #dcdfd9;
+            --muted:    #6b7570;
+            --accent:   #ffb454;
+            --accent2:  #5eead4;
+            --green:    #7ee787;
+            --red:      #ff6b6b;
+            --yellow:   #ffb454;
+            --purple:   #c8a8ff;
+            --radius:   4px;
+            --font-ui:  'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            --font-mono:'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+        }
+
+        body {
+            font-family: var(--font-ui);
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        /* ── Nav ──────────────────────────────────────── */
+        nav {
+            background: var(--surface);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        nav::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+        }
+
+        .nav-brand {
+            font-family: var(--font-mono);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .nav-brand span.tag {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            background: rgba(94,234,212,.1);
+            color: var(--accent2);
+            padding: 2px 7px;
+            border-radius: 2px;
+            border: 1px solid rgba(94,234,212,.3);
+            letter-spacing: 0.1em;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+            font-family: var(--font-mono);
+        }
+
+        .nav-links a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 7px 13px;
+            border-radius: var(--radius);
+            border: 1px solid transparent;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            transition: border-color .15s, color .15s;
+        }
+
+        .nav-links a:hover {
+            border-color: var(--border-hi);
+            color: var(--accent2);
+        }
+
+        .nav-links a.active {
+            color: var(--accent);
+            background: var(--panel);
+            border-color: var(--border);
+        }
+
+        .nav-links span.welcome {
+            color: var(--muted);
+            font-size: 12px;
+            padding: 0 4px;
+        }
+
+        .logout-btn {
+            background: rgba(255,107,107,.1) !important;
+            color: var(--red) !important;
+            border: 1px solid rgba(255,107,107,.3) !important;
+            padding: 7px 16px !important;
+        }
+
+        .logout-btn:hover {
+            border-color: var(--red) !important;
+            color: var(--red) !important;
+            background: rgba(255,107,107,.16) !important;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 24px auto;
+            padding: 0 20px;
+        }
+
+        .section {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+
+        .section-title {
+            font-family: var(--font-mono);
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            border-left: 3px solid var(--accent);
+            padding-left: 13px;
+        }
+
+        .search-box {
+            padding: 9px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            width: 260px;
+            outline: none;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            transition: border-color .15s;
+        }
+
+        .search-box:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(255, 180, 84, 0.1);
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .status-filter {
+            padding: 9px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            outline: none;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+        .status-filter:focus { border-color: var(--accent); }
+
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: var(--radius);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        th {
+            background: var(--panel);
+            color: var(--accent2);
+            font-weight: 700;
+            font-size: 11px;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        td { font-family: var(--font-ui); }
+        td code { font-family: var(--font-mono); color: var(--muted); }
+
+        tr {
+            transition: background .15s;
+        }
+
+        tr:hover {
+            background: var(--panel);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: var(--radius);
+            font-size: 10px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-running { background: rgba(126,231,135,.12); color: var(--green); border: 1px solid rgba(126,231,135,.3); }
+        .badge-stopped { background: rgba(255,107,107,.12); color: var(--red);   border: 1px solid rgba(255,107,107,.3); }
+        .badge-you     { background: rgba(255,180,84,.12); color: var(--accent); border: 1px solid rgba(255,180,84,.3); margin-left: 6px; }
+
+        .btn {
+            padding: 6px 13px;
+            border: 1px solid transparent;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin: 2px;
+            transition: filter .12s, transform .08s;
+            white-space: nowrap;
+        }
+
+        .btn:hover { filter: brightness(1.12); }
+        .btn:active { transform: translateY(1px); }
+
+        .btn-start   { background: var(--green);   color: #06140a; }
+        .btn-stop    { background: var(--yellow);  color: #1a0f00; }
+        .btn-delete  { background: var(--red);      color: #1a0606; }
+        .btn-console {
+            background: var(--accent2);
+            color: #06201c;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .stats-info {
+            display: inline-block;
+            padding: 6px 12px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--muted);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--panel);
+            color: var(--text);
+            padding: 10px 16px;
+            border-radius: var(--radius);
+            z-index: 1001;
+            border-left: 3px solid var(--green);
+            box-shadow: 0 4px 16px rgba(0,0,0,.5);
+            font-size: 13px;
+            font-weight: 500;
+            font-family: var(--font-mono);
+            opacity: 0;
+            transform: translateX(20px);
+            transition: opacity .2s, transform .2s;
+        }
+        .toast.show { opacity: 1; transform: translateX(0); }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 14px;
+            opacity: 0.4;
+        }
+
+        .empty-state p {
+            color: var(--muted);
+            font-family: var(--font-mono);
+            font-size: 13px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 5px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 0 14px; }
+            .section-header { flex-direction: column; align-items: flex-start; }
+            .search-box, .status-filter { width: 100%; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+    </style>
+
+    <!-- ── Smooth Page Transitions ─────────────────────────────────────────── -->
+    <style>
+        @keyframes _nexus-fade-in {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes _nexus-fade-out {
+            from { opacity: 1; }
+            to   { opacity: 0; }
+        }
+        ::view-transition-old(root) { animation: 180ms ease _nexus-fade-out; }
+        ::view-transition-new(root) { animation: 220ms ease _nexus-fade-in; }
+        body { view-transition-name: root; }
+        body.nexus-leaving  { animation: 160ms ease forwards _nexus-fade-out; pointer-events: none; }
+        body.nexus-entering { animation: 220ms ease _nexus-fade-in; }
+    </style>
+    <script>
+        (function () {
+            window.addEventListener('DOMContentLoaded', function () {
+                document.body.classList.add('nexus-entering');
+            });
+            document.addEventListener('click', function (e) {
+                const link = e.target.closest('a[href]');
+                if (!link) return;
+                const href = link.getAttribute('href');
+                if (!href || href.startsWith('#') || href.startsWith('javascript') ||
+                    link.target === '_blank' || link.hasAttribute('download')) return;
+                try {
+                    const url = new URL(href, location.origin);
+                    if (url.origin !== location.origin) return;
+                } catch (_) { return; }
+                if (document.startViewTransition) {
+                    e.preventDefault();
+                    document.startViewTransition(function () { location.href = link.href; });
+                    return;
+                }
+                e.preventDefault();
+                document.body.classList.add('nexus-leaving');
+                setTimeout(function () { location.href = link.href; }, 160);
+            });
+        })();
+    </script>
+    <!-- ──────────────────────────────────────────────────────────────────── -->
+</head>
+<body>
+    <nav>
+        <div class="nav-brand">
+            🤖 NEXUS <span class="tag">ADMIN</span>
+        </div>
+        <div class="nav-links">
+            <a href="/admin">📊 Dashboard</a>
+            <a href="/admin/users">👥 Users</a>
+            <a href="/admin/bots" class="active">🤖 Bots</a>
+            <a href="/admin/logs">📋 Logs</a>
+            <a href="/admin/settings">⚙ Settings</a>
+            <span class="welcome">Welcome, {{ username }}</span>
+            <a href="/logout" class="logout-btn">🚪 Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">
+                    📊 All Bots
+                </div>
+                <div class="filter-group">
+                    <input type="text" class="search-box" id="searchInput" placeholder="Search by name, owner, or ID…" onkeyup="filterBots()">
+                    <select id="statusFilter" class="status-filter" onchange="filterBots()">
+                        <option value="all">All Status</option>
+                        <option value="running">Running</option>
+                        <option value="stopped">Stopped</option>
+                    </select>
+                    <span class="stats-info" id="botCount"></span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table id="botsTable">
+                    <thead>
+                        <tr><th>Bot Name</th><th>Bot ID</th><th>Owner</th><th>Status</th><th>Messages</th><th>Created</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="botsTableBody">
+                        {% for bot in bots %}
+                        <tr data-bot-name="{{ bot.bot_name|lower }}" data-owner="{{ bot.username|lower }}" data-status="{{ bot.status }}">
+                            <td><strong>{{ bot.bot_name }}</strong></td>
+                            <td><code style="font-size: 11px;">{{ bot.bot_id[:12] }}...</code></td>
+                            <td>
+                                {{ bot.username }}
+                                {% if bot.username == username %}
+                                <span class="badge badge-you">you</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge badge-{{ bot.status }}">{{ bot.status|upper }}</span></td>
+                            <td>{{ bot.total_messages }}</td>
+                            <td>{{ bot.created_at[:16] if bot.created_at else 'N/A' }}</td>
+                            <td>
+                                <button class="btn btn-start" onclick="controlBot('{{ bot.bot_id }}', 'start')">▶ Start</button>
+                                <button class="btn btn-stop" onclick="controlBot('{{ bot.bot_id }}', 'stop')">⏹ Stop</button>
+                                <a href="/bot_console/{{ bot.bot_id }}" class="btn btn-console">📟 Console</a>
+                                <button class="btn btn-delete" onclick="deleteBot('{{ bot.bot_id }}')">🗑 Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-state-icon">🤖</div>
+                <p>No bots found matching your filters.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" style="display: none;"></div>
+
+    <script>
+        'use strict';
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.borderLeftColor = type === 'success' ? 'var(--green)' : 'var(--red)';
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => {
+                    toast.style.display = 'none';
+                    toast.style.opacity = '1';
+                }, 300);
+            }, 3000);
+        }
+
+        function updateBotCount() {
+            const rows = document.querySelectorAll('#botsTableBody tr');
+            const visibleRows = Array.from(rows).filter(row => row.style.display !== 'none');
+            document.getElementById('botCount').textContent = `Showing ${visibleRows.length} of ${rows.length} bots`;
+
+            const emptyState = document.getElementById('emptyState');
+            if (visibleRows.length === 0 && rows.length > 0) {
+                emptyState.style.display = 'block';
+            } else {
+                emptyState.style.display = 'none';
+            }
+        }
+
+        function filterBots() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const rows = document.querySelectorAll('#botsTableBody tr');
+
+            rows.forEach(row => {
+                const botName = row.getAttribute('data-bot-name') || '';
+                const owner = row.getAttribute('data-owner') || '';
+                const status = row.getAttribute('data-status') || '';
+
+                const matchesSearch = searchTerm === '' || botName.includes(searchTerm) || owner.includes(searchTerm);
+                const matchesStatus = statusFilter === 'all' || status === statusFilter;
+
+                row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
+            });
+
+            updateBotCount();
+        }
+
+        async function controlBot(botId, action) {
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
+
+            try {
+                const response = await fetch(`/admin/bot/${botId}/${action}`, { method: 'POST' });
+                if (response.ok) {
+                    showToast(`✅ Bot ${action}ed successfully`);
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    showToast(`❌ Failed to ${action} bot`, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            } catch (err) {
+                showToast(`❌ Error: ${err.message}`, 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function deleteBot(botId) {
+            if (!confirm('⚠️ Delete this bot permanently?\n\nAll data, logs, and files will be removed. This cannot be undone.')) {
+                return;
+            }
+
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
+
+            try {
+                const response = await fetch(`/admin/bot/${botId}/delete`, { method: 'POST' });
+                if (response.ok) {
+                    showToast('🗑 Bot deleted');
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    const data = await response.json();
+                    showToast('❌ ' + (data.error || 'Failed to delete bot'), 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            } catch (err) {
+                showToast('❌ Error deleting bot', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // Initialize
+        updateBotCount();
+
+        // Auto-refresh stats every 30 seconds
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/admin/stats');
+                if (response.ok) {
+                    // Stats updated silently
+                }
+            } catch (err) {
+                // Silent fail
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NEXUS Bot Console • {{ bot.bot_name }}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <style>
+        /* ── Reset & base ─────────────────────────────── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            /* Signal-room palette: charcoal deck, amber primary telemetry, cyan secondary */
+            --bg:       #0a0c0e;
+            --surface:  #111417;
+            --panel:    #15181c;
+            --border:   #262b30;
+            --border-hi:#3a4147;
+            --text:     #dcdfd9;
+            --muted:    #6b7570;
+            --accent:   #ffb454;   /* amber signal — primary */
+            --accent2:  #5eead4;   /* cyan signal — secondary */
+            --green:    #7ee787;
+            --red:      #ff6b6b;
+            --yellow:   #ffb454;
+            --purple:   #c8a8ff;
+            --radius:   4px;
+            --font-ui:  'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            --font-mono:'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+        }
+
+        body {
+            font-family: var(--font-ui);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            /* Prevent whole-page repaints */
+            contain: layout;
+        }
+
+        /* ── Nav ──────────────────────────────────────── */
+        nav {
+            background: var(--surface);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        nav::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+        }
+
+        .nav-brand {
+            font-family: var(--font-mono);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .nav-brand::after {
+            content: '_';
+            color: var(--accent2);
+            animation: blink 1.1s step-end infinite;
+        }
+        .nav-brand span.tag {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            background: rgba(94,234,212,.1);
+            color: var(--accent2);
+            padding: 2px 7px;
+            border-radius: 2px;
+            border: 1px solid rgba(94,234,212,.3);
+            letter-spacing: 0.1em;
+        }
+
+        .back-btn {
+            background: var(--panel);
+            color: var(--text);
+            padding: 7px 14px;
+            text-decoration: none;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            font-size: 13px;
+            font-family: var(--font-mono);
+            transition: border-color .15s, color .15s;
+        }
+        .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* ── Layout ───────────────────────────────────── */
+        .container {
+            max-width: 1800px;
+            margin: 16px auto;
+            padding: 0 16px;
+        }
+
+        /* ── Bot info card ────────────────────────────── */
+        .bot-info {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 6px;
+            padding: 18px 22px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,.2);
+        }
+
+        .bot-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .bot-name {
+            font-size: 19px;
+            font-weight: 700;
+            color: #f0f1ed;
+            font-family: var(--font-mono);
+            letter-spacing: 0.01em;
+        }
+
+        .bot-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: var(--radius);
+            font-size: 10px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            letter-spacing: 0.08em;
+        }
+        .status-running  { background: rgba(34,197,94,.15);  color: var(--green);  border: 1px solid rgba(34,197,94,.3); }
+        .status-stopped  { background: rgba(239,68,68,.15);  color: var(--red);    border: 1px solid rgba(239,68,68,.3); }
+        .status-installing { background: rgba(245,158,11,.15); color: var(--yellow); border: 1px solid rgba(245,158,11,.3); }
+
+        .bot-meta {
+            font-size: 12px;
+            color: var(--muted);
+            font-family: var(--font-mono);
+            margin-bottom: 12px;
+        }
+
+        .bot-stats {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            font-family: var(--font-mono);
+        }
+        .bot-stats > span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+        }
+        .live-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            display: inline-block;
+            animation: blink 2s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: .3; } }
+
+        /* Signature telemetry: a tiny VU-style signal bar, used wherever "live" status appears */
+        .signal-bars {
+            display: inline-flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 10px;
+            vertical-align: middle;
+        }
+        .signal-bars span {
+            width: 3px;
+            background: var(--green);
+            border-radius: 1px;
+            animation: signal-pulse 1.1s ease-in-out infinite;
+        }
+        .signal-bars span:nth-child(1) { height: 4px;  animation-delay: 0s; }
+        .signal-bars span:nth-child(2) { height: 8px;  animation-delay: .15s; }
+        .signal-bars span:nth-child(3) { height: 6px;  animation-delay: .3s; }
+        .signal-bars.off span { animation: none; height: 3px !important; background: var(--red); opacity: .5; }
+        @keyframes signal-pulse {
+            0%, 100% { transform: scaleY(.5); opacity: .6; }
+            50%      { transform: scaleY(1);  opacity: 1; }
+        }
+
+        /* ── Controls ────────────────────────────────── */
+        .controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 7px 14px;
+            border: 1px solid transparent;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            transition: filter .12s, opacity .12s, transform .08s, box-shadow .12s;
+            white-space: nowrap;
+        }
+        .btn:hover:not(:disabled) { filter: brightness(1.12); }
+        .btn:active:not(:disabled) { filter: brightness(.9); transform: translateY(1px); }
+        .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+        .btn-start   { background: var(--green);  color: #06140a; border-color: rgba(126,231,135,.4); }
+        .btn-stop    { background: var(--yellow); color: #1a0f00; border-color: rgba(255,180,84,.4); }
+        .btn-restart { background: var(--purple); color: #150f24; border-color: rgba(200,168,255,.4); }
+        .btn-clear   { background: var(--panel);  color: var(--text); border-color: var(--border); }
+        .btn-copy    { background: var(--panel);  color: var(--text); border-color: var(--border); }
+        .btn-refresh { background: rgba(94,234,212,.12); color: var(--accent2); border-color: rgba(94,234,212,.3); }
+        .btn-dl      { background: var(--panel); color: var(--muted); border-color: var(--border-hi); }
+
+        .controls {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        /* Visual divider between action groups */
+        .controls .btn-clear { margin-left: 8px; border-left: 1px solid var(--border-hi); padding-left: 14px; }
+        @media (max-width: 600px) { .controls .btn-clear { margin-left: 0; border-left: none; } }
+
+        /* ── Split layout ─────────────────────────────── */
+        .split-layout {
+            display: flex;
+            gap: 14px;
+        }
+
+        .file-panel {
+            flex: 0 0 300px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            min-width: 0;
+            box-shadow: 0 2px 12px rgba(0,0,0,.18);
+        }
+
+        .console-panel {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,.18);
+        }
+
+        /* Floating "new output" pill — appears when auto-scroll is paused and lines arrive below the fold */
+        .jump-bottom-btn {
+            position: absolute;
+            bottom: 26px;
+            left: 50%;
+            transform: translate(-50%, 12px);
+            background: var(--accent2);
+            color: #06201c;
+            border: none;
+            padding: 7px 16px;
+            border-radius: 999px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0,0,0,.4);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .15s, transform .15s;
+            z-index: 5;
+        }
+        .jump-bottom-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate(-50%, 0);
+        }
+        .jump-bottom-btn:hover { filter: brightness(1.08); }
+        .jump-bottom-btn .count {
+            background: rgba(0,0,0,.25);
+            border-radius: 999px;
+            padding: 1px 7px;
+            font-size: 10px;
+        }
+
+        /* ── File browser ─────────────────────────────── */
+        .panel-title {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .panel-actions { display: flex; gap: 6px; }
+
+        .btn-sm {
+            padding: 5px 11px;
+            font-size: 10px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            transition: border-color .12s;
+        }
+        .btn-sm:hover { border-color: var(--accent); }
+        .btn-sm-upload { background: rgba(255,180,84,.12); color: var(--accent); border-color: rgba(255,180,84,.3); }
+        .btn-sm-new    { background: rgba(126,231,135,.12); color: var(--green); border-color: rgba(126,231,135,.3); }
+
+        .search-box {
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            outline: none;
+            transition: border-color .15s;
+        }
+        .search-box:focus { border-color: var(--accent); }
+
+        .breadcrumb {
+            padding: 0 0 8px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--muted);
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .breadcrumb a {
+            color: var(--accent2);
+            text-decoration: none;
+            cursor: pointer;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .breadcrumb a:hover { background: rgba(94,234,212,.1); }
+
+        .file-browser {
+            max-height: 380px;
+            overflow-y: auto;
+            /* Custom scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: #1e2d44 transparent;
+        }
+        .file-browser::-webkit-scrollbar { width: 6px; }
+        .file-browser::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .file-item {
+            padding: 7px 10px;
+            margin: 2px 0;
+            border-radius: var(--radius);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-family: var(--font-mono);
+            background: transparent;
+            border: 1px solid transparent;
+            transition: background .1s, border-color .1s;
+        }
+        .file-item:hover { background: var(--panel); border-color: var(--border); }
+        .file-item.active { background: rgba(255,180,84,.08); border-color: rgba(255,180,84,.25); color: var(--accent); }
+        .file-item.folder { color: var(--accent2); font-weight: 600; }
+        .file-item .name  { display: flex; align-items: center; gap: 7px; flex: 1; }
+
+        .file-actions { display: flex; gap: 5px; opacity: 0; }
+        .file-item:hover .file-actions { opacity: 1; }
+        .file-actions button {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-size: 11px;
+            padding: 3px 7px;
+            border-radius: 4px;
+            color: var(--muted);
+            transition: color .12s, border-color .12s;
+        }
+        .file-actions button.edit-btn:hover  { color: var(--green); border-color: var(--green); }
+        .file-actions button.delete-btn:hover { color: var(--red);   border-color: var(--red);   }
+
+        .info-text {
+            font-size: 12px;
+            color: var(--muted);
+            padding: 10px;
+            text-align: center;
+            border-radius: 6px;
+            background: rgba(0,0,0,.2);
+            margin-top: 8px;
+        }
+
+        /* ── Console (virtual scroll) ──────────────────── */
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .console-toolbar { display: flex; gap: 8px; align-items: center; }
+
+        .auto-scroll-badge {
+            font-size: 10px;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 4px 10px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 700;
+            border: 1px solid transparent;
+            transition: opacity .12s;
+        }
+        .auto-scroll-on  { background: rgba(126,231,135,.12);  color: var(--green);  border-color: rgba(126,231,135,.3); }
+        .auto-scroll-off { background: var(--panel); color: var(--muted); border-color: var(--border); }
+
+        /*
+         * VIRTUAL SCROLL CONSOLE
+         * The viewport is a fixed-height scrollable container.
+         * The inner spacer fills the total height of all lines.
+         * Only lines in the visible window are rendered into #consoleRows.
+         * This keeps DOM nodes constant regardless of log volume.
+         */
+        .console-viewport {
+            background: var(--bg);
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+            will-change: scroll-position;
+            scrollbar-width: thin;
+            scrollbar-color: #1e2d44 transparent;
+            min-height: 420px;
+            max-height: calc(100vh - 320px);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,.25);
+        }
+        .console-viewport::-webkit-scrollbar { width: 6px; }
+        .console-viewport::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* Spacer expands to represent all log lines */
+        .console-spacer {
+            position: absolute;
+            top: 0; left: 0; width: 1px;
+            pointer-events: none;
+        }
+
+        /* Only visible lines are rendered here */
+        #consoleRows {
+            position: absolute;
+            left: 0; right: 0;
+            padding: 8px 10px;
+        }
+
+        .console-line {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 20px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            padding: 1px 10px;
+            border-left: 2px solid transparent;
+            color: var(--text);
+            transition: background .08s;
+        }
+        .console-line:hover { background: rgba(255,255,255,.025); }
+        .console-line.cl-output  { border-left-color: #2a2f33; }
+        .console-line.cl-error   { border-left-color: var(--red);    color: #ff9b9b; background: rgba(255,107,107,.04); }
+        .console-line.cl-system  { border-left-color: var(--accent2); color: var(--muted); font-style: italic; }
+        .console-line.cl-restart { border-left-color: var(--accent);  color: #ffd199; }
+
+        /* ANSI colours are now applied inline by ansiToHtml() — no static classes needed */
+
+        /* ── Editor ──────────────────────────────────── */
+        .editor-area {
+            margin-top: 14px;
+            display: none;
+            border: 1px solid var(--border-hi);
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,.2);
+        }
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 14px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+        }
+        .editor-filename {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--accent2);
+            letter-spacing: 0.04em;
+        }
+        textarea {
+            width: 100%;
+            height: 380px;
+            background: var(--bg);
+            border: none;
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            padding: 14px;
+            resize: vertical;
+            outline: none;
+            line-height: 1.6;
+        }
+
+        /* ── Upload area ──────────────────────────────── */
+        .upload-area {
+            padding: 14px;
+            background: var(--bg);
+            border-radius: 8px;
+            border: 2px dashed var(--border);
+            transition: border-color .15s;
+        }
+        .upload-area:hover { border-color: var(--accent); }
+        .upload-area.drag-over { border-color: var(--green); background: rgba(34,197,94,.04); }
+
+        .upload-input  { display: none; }
+        .upload-label  {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--accent2); color: #06201c;
+            padding: 7px 14px; border-radius: var(--radius); cursor: pointer;
+            font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .03em;
+            font-size: 12px; font-weight: 700; margin-top: 10px;
+        }
+        .upload-label:hover { filter: brightness(1.1); }
+
+        .auto-restart-toggle {
+            margin-top: 10px; padding: 7px 10px;
+            background: rgba(0,0,0,.3); border-radius: 7px;
+            display: flex; align-items: center; gap: 8px;
+            font-size: 12px; cursor: pointer; color: var(--text);
+        }
+        .upload-progress { margin-top: 10px; display: none; }
+        .progress-bar  { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--green); width: 0%; transition: width .3s; }
+
+        .upload-list { margin-top: 10px; max-height: 140px; overflow-y: auto; }
+        .upload-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 8px; background: rgba(0,0,0,.3); border-radius: 5px;
+            margin-top: 5px; font-size: 12px;
+        }
+        .upload-item-name { display: flex; align-items: center; gap: 6px; }
+        .upload-item-status { font-size: 11px; padding: 2px 7px; border-radius: 10px; }
+        .status-success    { background: rgba(34,197,94,.2);  color: var(--green); }
+        .status-error      { background: rgba(239,68,68,.2);  color: var(--red); }
+        .status-uploading  { background: rgba(245,158,11,.2); color: var(--yellow); }
+        .status-restarted  { background: rgba(168,85,247,.2); color: var(--purple); }
+
+        /* ── Deps indicator ──────────────────────────── */
+        .deps-indicator {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 11px; padding: 2px 8px; border-radius: 10px;
+            background: rgba(245,158,11,.1); color: var(--yellow);
+            border: 1px solid rgba(245,158,11,.2);
+        }
+        .spinner {
+            width: 12px; height: 12px;
+            border: 2px solid rgba(255,255,255,.2);
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes ansi-blink { 50% { opacity: .25; } }
+
+        /* ── Toast ───────────────────────────────────── */
+        .toast {
+            position: fixed; bottom: 20px; right: 20px;
+            background: var(--panel);
+            color: var(--text);
+            padding: 10px 18px;
+            border-radius: 5px;
+            z-index: 1000;
+            border-left: 3px solid var(--green);
+            border: 1px solid var(--border);
+            border-left-width: 3px;
+            box-shadow: 0 4px 20px rgba(0,0,0,.5);
+            font-size: 12px; font-weight: 500;
+            font-family: var(--font-mono);
+            opacity: 0;
+            transform: translateX(20px);
+            transition: opacity .2s, transform .2s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateX(0); }
+
+        /* ── Modal ───────────────────────────────────── */
+        .modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.82);
+            justify-content: center; align-items: center;
+            z-index: 200;
+        }
+        .modal-content {
+            background: var(--panel);
+            padding: 28px;
+            border-radius: 8px;
+            width: 90%; max-width: 480px;
+            border: 1px solid var(--border-hi);
+            box-shadow: 0 12px 48px rgba(0,0,0,.6), 0 0 0 1px rgba(255,180,84,.05);
+        }
+        .modal-content h2, .modal-content h3 {
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-mono);
+            letter-spacing: .04em;
+            font-size: 13px;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+        .modal-content input {
+            width: 100%; padding: 10px 12px;
+            margin: 10px 0;
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 4px; color: var(--text); outline: none; font-size: 13px;
+            font-family: var(--font-mono);
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .modal-content input:focus {
+            border-color: var(--accent2);
+            box-shadow: 0 0 0 3px rgba(94,234,212,.1);
+        }
+        .modal-content button {
+            background: var(--accent2); color: #06201c;
+            padding: 10px; border: none; border-radius: 4px;
+            width: 100%; margin-top: 8px; cursor: pointer;
+            font-weight: 700; font-family: var(--font-mono); font-size: 11px;
+            text-transform: uppercase; letter-spacing: .05em;
+            transition: filter .12s;
+        }
+        .modal-content button:hover { filter: brightness(1.1); }
+        .modal-content button.btn-cancel {
+            background: var(--panel); color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        /* ── Status badge dot ─────────────────────────── */
+        .status-badge {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+        }
+        .status-badge.running    { background: var(--green); }
+        .status-badge.stopped    { background: var(--red); }
+        .status-badge.installing { background: var(--yellow); }
+
+        /* ── Responsive ──────────────────────────────── */
+        @media (max-width: 900px) {
+            .split-layout { flex-direction: column; }
+            .file-panel { flex: none; }
+            .console-viewport { min-height: 300px; max-height: 55vh; }
+        }
+        @media (max-width: 480px) {
+            nav { padding: 10px 14px; }
+            .btn { padding: 7px 12px; font-size: 12px; }
+            .bot-name { font-size: 16px; }
+        }
+
+        /* ── Reduced motion ──────────────────────────── */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* ── UI upgrades ─────────────────────────────── */
+
+        /* Page fade-in */
+        .container { animation: fadeUp .25s ease-out both; }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Back button upgrade */
+        .back-btn {
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            padding: 6px 14px;
+            border-radius: 4px;
+        }
+
+        /* Bot name stronger */
+        .bot-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            font-family: var(--font-mono);
+            letter-spacing: 0.01em;
+        }
+
+        /* Bot meta line */
+        .bot-meta {
+            font-size: 11px;
+            color: var(--muted);
+            font-family: var(--font-mono);
+            margin-bottom: 10px;
+            letter-spacing: 0.03em;
+        }
+
+        /* Search box focus glow */
+        .search-box:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(255,180,84,.12);
+        }
+
+        /* Upload area upgrade */
+        .upload-area {
+            padding: 18px;
+            background: var(--bg);
+            border-radius: 6px;
+            border: 2px dashed var(--border);
+            transition: border-color .15s, background .15s;
+        }
+        .upload-area:hover { border-color: var(--accent); }
+        .upload-area.drag-over { border-color: var(--green); background: rgba(126,231,135,.03); }
+
+        /* Status badge: pulsing ring when running */
+        .status-badge.running {
+            background: var(--green);
+            box-shadow: 0 0 0 3px rgba(126,231,135,.2);
+            animation: ring-pulse 2s ease-in-out infinite;
+        }
+        @keyframes ring-pulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(126,231,135,.2); }
+            50%       { box-shadow: 0 0 0 5px rgba(126,231,135,.05); }
+        }
+
+        /* Breadcrumb separator */
+        .breadcrumb span.sep { color: var(--border-hi); }
+
+        /* btn-sm refinements */
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 10px;
+            border-radius: 3px;
+            letter-spacing: 0.05em;
+        }
+
+        /* Auto-scroll badge */
+        .auto-scroll-badge {
+            border-radius: 20px;
+            font-size: 9px;
+            letter-spacing: 0.07em;
+        }
+
+        /* Jump-to-bottom button upgrade */
+        .jump-bottom-btn {
+            border-radius: 999px;
+            font-size: 10px;
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 20px rgba(0,0,0,.5);
+        }
+
+        /* Scrollbar polish across panels */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+    </style>
+
+    <!-- ── Smooth Page Transitions ─────────────────────────────────────────── -->
+    <style>
+        @keyframes _nexus-fade-in {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes _nexus-fade-out {
+            from { opacity: 1; }
+            to   { opacity: 0; }
+        }
+        ::view-transition-old(root) { animation: 180ms ease _nexus-fade-out; }
+        ::view-transition-new(root) { animation: 220ms ease _nexus-fade-in; }
+        body { view-transition-name: root; }
+        body.nexus-leaving  { animation: 160ms ease forwards _nexus-fade-out; pointer-events: none; }
+        body.nexus-entering { animation: 220ms ease _nexus-fade-in; }
+    </style>
+    <script>
+        (function () {
+            window.addEventListener('DOMContentLoaded', function () {
+                document.body.classList.add('nexus-entering');
+            });
+            document.addEventListener('click', function (e) {
+                const link = e.target.closest('a[href]');
+                if (!link) return;
+                const href = link.getAttribute('href');
+                if (!href || href.startsWith('#') || href.startsWith('javascript') ||
+                    link.target === '_blank' || link.hasAttribute('download')) return;
+                try {
+                    const url = new URL(href, location.origin);
+                    if (url.origin !== location.origin) return;
+                } catch (_) { return; }
+                if (document.startViewTransition) {
+                    e.preventDefault();
+                    document.startViewTransition(function () { location.href = link.href; });
+                    return;
+                }
+                e.preventDefault();
+                document.body.classList.add('nexus-leaving');
+                setTimeout(function () { location.href = link.href; }, 160);
+            });
+        })();
+    </script>
+    <!-- ──────────────────────────────────────────────────────────────────── -->
+</head>
+<body>
+    <nav>
+        <div class="nav-brand">
+            🤖 NEXUS <span class="tag">CONSOLE</span>
+        </div>
+        <a href="{% if session.is_admin %}/admin{% else %}/dashboard{% endif %}" class="back-btn">← Dashboard</a>
+    </nav>
+
+    <div class="container">
+        <!-- Bot info bar -->
+        <div class="bot-info">
+            <div class="bot-header">
+                <span class="status-badge" id="statusBadge"></span>
+                <span class="bot-name">{{ bot.bot_name }}</span>
+                <span class="bot-status" id="statusText">{{ bot.status|upper }}</span>
+                {% if not bot.deps_installed %}
+                <span class="deps-indicator" id="depsIndicator">
+                    <span class="spinner"></span> Installing dependencies…
+                </span>
+                {% endif %}
+            </div>
+            <div class="bot-meta">ID: {{ bot.bot_id }}</div>
+            <div class="bot-stats">
+                <span id="liveIndicator"><span class="signal-bars"><span></span><span></span><span></span></span> Live</span>
+                <span id="consoleStats">0 lines</span>
+                <span id="runtimeStats">Runtime: 0s</span>
+            </div>
+            <div class="controls">
+                <button class="btn btn-start"   id="startBtn"   onclick="controlBot('start')"   {% if not bot.deps_installed %}disabled title="Dependencies installing…"{% endif %}>▶ Start</button>
+                <button class="btn btn-stop"    id="stopBtn"    onclick="controlBot('stop')"  >⏹ Stop</button>
+                <button class="btn btn-restart" id="restartBtn" onclick="controlBot('restart')" {% if not bot.deps_installed %}disabled title="Dependencies installing…"{% endif %}>↺ Restart</button>
+                <button class="btn btn-clear"   onclick="clearConsole()">🗑 Clear</button>
+                <button class="btn btn-copy"    onclick="copyLogs()">📋 Copy logs</button>
+                <button class="btn btn-refresh" onclick="refreshAll()">⟳ Refresh</button>
+                <button class="btn btn-dl"      onclick="downloadLogs()">💾 Download</button>
+            </div>
+        </div>
+
+        <!-- Main split -->
+        <div class="split-layout">
+            <!-- File panel -->
+            <div class="file-panel">
+                <div class="panel-title">
+                    📁 Files
+                    <div class="panel-actions">
+                        <button class="btn-sm btn-sm-upload" onclick="showUploadModal()">↑ Upload</button>
+                        <button class="btn-sm btn-sm-new"    onclick="showNewFileModal()">+ New</button>
+                    </div>
+                </div>
+                <input type="text" class="search-box" id="fileSearch" placeholder="Search files…" onkeyup="filterFiles()">
+                <div class="breadcrumb" id="breadcrumb"></div>
+                <div class="file-browser" id="fileBrowser">
+                    <div class="info-text">Loading files…</div>
+                </div>
+                <div class="editor-area" id="editorArea">
+                    <div class="editor-header">
+                        <span class="editor-filename" id="editorFilename"></span>
+                        <div style="display:flex;gap:6px;">
+                            <button class="btn btn-start" style="padding:5px 12px;font-size:12px;" onclick="saveFile()">💾 Save</button>
+                            <button class="btn btn-clear" style="padding:5px 12px;font-size:12px;" onclick="closeEditor()">✕ Close</button>
+                        </div>
+                    </div>
+                    <textarea id="editorContent" spellcheck="false"></textarea>
+                </div>
+            </div>
+
+            <!-- Console panel -->
+            <div class="console-panel">
+                <div class="console-header">
+                    <div class="panel-title" style="margin:0;">📟 Live Output</div>
+                    <div class="console-toolbar">
+                        <div id="autoScrollBtn" class="auto-scroll-badge auto-scroll-on" onclick="toggleAutoScroll()">↓ Auto-scroll</div>
+                        <span style="font-size:11px;color:var(--green);">⚡ Real-time</span>
+                    </div>
+                </div>
+                <!-- Virtual-scroll viewport -->
+                <div class="console-viewport" id="consoleViewport">
+                    <div class="console-spacer" id="consoleSpacer"></div>
+                    <div id="consoleRows"></div>
+                </div>
+                <button id="jumpBottomBtn" class="jump-bottom-btn" onclick="jumpToBottom()">
+                    ↓ New output <span class="count" id="jumpBottomCount">0</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload modal -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <h2>↑ Upload File</h2>
+            <div class="upload-area" id="dropZone">
+                <div style="color:var(--muted);font-size:13px;margin-bottom:8px;">Drag & drop files here, or click below</div>
+                <input type="file" id="fileInput" class="upload-input" multiple>
+                <label for="fileInput" class="upload-label">📂 Choose Files</label>
+                <div class="auto-restart-toggle">
+                    <input type="checkbox" id="autoRestartToggle" checked>
+                    <span>Auto-restart when uploading main .py file</span>
+                </div>
+                <div class="upload-progress" id="uploadProgress">
+                    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                    <div style="font-size:11px;margin-top:4px;color:var(--muted);" id="progressText">Uploading…</div>
+                </div>
+                <div class="upload-list" id="uploadList"></div>
+            </div>
+            <button type="button" onclick="closeUploadModal()" class="btn-cancel" style="margin-top:10px;background:var(--panel);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:8px;width:100%;cursor:pointer;font-weight:600;">Close</button>
+        </div>
+    </div>
+
+    <!-- New file modal -->
+    <div id="newFileModal" class="modal">
+        <div class="modal-content">
+            <h3>📄 Create New File</h3>
+            <input type="text" id="newFileName" placeholder="filename.py" autocomplete="off">
+            <button onclick="createNewFile()">Create</button>
+            <button onclick="closeNewFileModal()" class="btn-cancel">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Confirm modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h3 id="confirmTitle">Confirm</h3>
+            <p id="confirmMessage" style="margin:12px 0;font-size:13px;color:var(--muted);"></p>
+            <button id="confirmButton">Confirm</button>
+            <button onclick="closeConfirmModal()" class="btn-cancel">Cancel</button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+    'use strict';
+
+    /* ── Config ──────────────────────────────────────── */
+    const CONFIG = {
+        AUTO_REFRESH_INTERVAL: 2000,
+        DEPS_CHECK_INTERVAL:   5000,
+        MAX_CONSOLE_LINES:     2000,   // hard cap on buffered lines
+        MAX_FILE_SIZE:         50 * 1024 * 1024,
+        LINE_HEIGHT:           20,     // px — must match CSS line-height
+        VIEWPORT_PADDING:      8,      // px top/bottom inside viewport
+    };
+
+    /* ── State ───────────────────────────────────────── */
+    let state = {
+        botId:          '{{ bot.bot_id }}',
+        botName:        '{{ bot.bot_name }}',
+        depsInstalled:  {{ bot.deps_installed|default(0) }},
+        currentPath:    '',
+        currentEditFile: null,
+        lastLogContent: '',
+        seenLogLines:   new Set(),  // raw log lines already ingested from the server — persists across Clear
+        autoScroll:     true,
+        unreadLines:    0,
+        refreshInterval: null,
+        depsInterval:   null,
+        runtimeInterval: null,
+        botStartTime:   null,
+        isRefreshing:   false,
+        fileFilterTimeout: null,
+
+        /* Virtual scroll buffer */
+        lines: [],         // { html, cls } for every buffered log line
+        vsRaf: null,       // requestAnimationFrame handle
+        vsLastStart: -1,   // last rendered first visible index
+    };
+
+    /* ── ANSI → HTML cache ───────────────────────────── */
+    const ansiCache = new Map();
+
+    function escapeHtml(t) {
+        return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function ansiToHtml(text) {
+        if (!text) return '';
+        if (ansiCache.has(text)) return ansiCache.get(text);
+
+        // Standard + bright 16-color palette, tuned to the console's signal theme
+        const FG = {
+            30:'#5b6168', 31:'#ff6b6b', 32:'#7ee787', 33:'#ffb454',
+            34:'#5eead4', 35:'#c8a8ff', 36:'#5eead4', 37:'#dcdfd9',
+            90:'#7a828c', 91:'#ff8f8f', 92:'#9bf0a4', 93:'#ffd28a',
+            94:'#8fe9e0', 95:'#dcc4ff', 96:'#8fe9e0', 97:'#ffffff',
+        };
+        const BG = {
+            40:'#1c2024', 41:'#3a1414', 42:'#143a1a', 43:'#3a2c10',
+            44:'#0f2c2a', 45:'#2c1a3a', 46:'#0f2c2a', 47:'#2a2f33',
+            100:'#262b30', 101:'#4a1c1c', 102:'#1c4a26', 103:'#4a3712',
+            104:'#123a37', 105:'#371c4a', 106:'#123a37', 107:'#3a4147',
+        };
+        const BASE16 = ['#000000','#ff6b6b','#7ee787','#ffb454','#5eead4','#c8a8ff','#5eead4','#dcdfd9',
+                         '#5b6168','#ff8f8f','#9bf0a4','#ffd28a','#8fe9e0','#dcc4ff','#8fe9e0','#ffffff'];
+        function ansi256(n) {
+            if (n < 16) return BASE16[n];
+            if (n >= 232) { const g = Math.round((n - 232) / 23 * 255); return `rgb(${g},${g},${g})`; }
+            const i = n - 16, r = Math.floor(i / 36), g = Math.floor((i % 36) / 6), b = i % 6;
+            const lvl = v => v === 0 ? 0 : 55 + v * 40;
+            return `rgb(${lvl(r)},${lvl(g)},${lvl(b)})`;
+        }
+
+        const parts = text.split(/\x1b\[([0-9;]*)m/);
+        let html = '';
+        let open = false;
+        let cur = { fg: null, bg: null, bold: false, dim: false, italic: false, underline: false, strike: false, blink: false, reverse: false };
+
+        function styleStr() {
+            const s = [];
+            let fg = cur.fg, bg = cur.bg;
+            if (cur.reverse) { const t = fg; fg = bg || 'var(--bg)'; bg = t || 'var(--text)'; }
+            if (fg) s.push(`color:${fg}`);
+            if (bg) s.push(`background:${bg}`);
+            if (cur.bold) s.push('font-weight:700');
+            if (cur.dim) s.push('opacity:.6');
+            if (cur.italic) s.push('font-style:italic');
+            const lines = [cur.underline ? 'underline' : '', cur.strike ? 'line-through' : ''].filter(Boolean);
+            if (lines.length) s.push(`text-decoration:${lines.join(' ')}`);
+            if (cur.blink) s.push('animation:ansi-blink 1s step-end infinite');
+            return s.join(';');
+        }
+        function closeIfOpen() { if (open) { html += '</span>'; open = false; } }
+        function openIfStyled() { const s = styleStr(); if (s) { html += `<span style="${s}">`; open = true; } }
+
+        for (let i = 0; i < parts.length; i++) {
+            if (i % 2 === 0) {
+                if (parts[i]) html += escapeHtml(parts[i]);
+                continue;
+            }
+            closeIfOpen();
+            const codes = parts[i].split(';').filter(c => c !== '').map(Number);
+            if (codes.length === 0) codes.push(0);
+            for (let j = 0; j < codes.length; j++) {
+                const c = codes[j];
+                if (c === 0) cur = { fg: null, bg: null, bold: false, dim: false, italic: false, underline: false, strike: false, blink: false, reverse: false };
+                else if (c === 1) cur.bold = true;
+                else if (c === 2) cur.dim = true;
+                else if (c === 3) cur.italic = true;
+                else if (c === 4) cur.underline = true;
+                else if (c === 5 || c === 6) cur.blink = true;
+                else if (c === 7) cur.reverse = true;
+                else if (c === 9) cur.strike = true;
+                else if (c === 22) cur.bold = false;
+                else if (c === 23) cur.italic = false;
+                else if (c === 24) cur.underline = false;
+                else if (c === 25) cur.blink = false;
+                else if (c === 27) cur.reverse = false;
+                else if (c === 29) cur.strike = false;
+                else if (c === 39) cur.fg = null;
+                else if (c === 49) cur.bg = null;
+                else if (c === 38 && codes[j + 1] === 5) { cur.fg = ansi256(codes[j + 2]); j += 2; }
+                else if (c === 48 && codes[j + 1] === 5) { cur.bg = ansi256(codes[j + 2]); j += 2; }
+                else if (c === 38 && codes[j + 1] === 2) { cur.fg = `rgb(${codes[j+2]},${codes[j+3]},${codes[j+4]})`; j += 4; }
+                else if (c === 48 && codes[j + 1] === 2) { cur.bg = `rgb(${codes[j+2]},${codes[j+3]},${codes[j+4]})`; j += 4; }
+                else if (FG[c] !== undefined) cur.fg = FG[c];
+                else if (BG[c] !== undefined) cur.bg = BG[c];
+            }
+            openIfStyled();
+        }
+        closeIfOpen();
+
+        if (ansiCache.size < 1000) ansiCache.set(text, html);
+        return html;
+    }
+
+    /* ── Toast ───────────────────────────────────────── */
+    let _toastTimer;
+    function showToast(msg, type = 'success') {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.style.borderLeftColor = type === 'error' ? 'var(--red)' : 'var(--green)';
+        t.classList.add('show');
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    /* ══════════════════════════════════════════════════
+       VIRTUAL SCROLL ENGINE
+       Only renders lines visible in the viewport + a
+       small overscan buffer. DOM size stays constant.
+    ══════════════════════════════════════════════════ */
+    const LH = CONFIG.LINE_HEIGHT;
+    const VP_PAD = CONFIG.VIEWPORT_PADDING;
+
+    function vsGetViewport() { return document.getElementById('consoleViewport'); }
+    function vsSpacer()      { return document.getElementById('consoleSpacer'); }
+    function vsRows()        { return document.getElementById('consoleRows'); }
+
+    function vsTotalHeight() {
+        return state.lines.length * LH + VP_PAD * 2;
+    }
+
+    /* Call this after adding/removing lines */
+    function vsInvalidate() {
+        if (state.vsRaf) return; // already queued
+        state.vsRaf = requestAnimationFrame(vsRender);
+    }
+
+    function vsRender() {
+        state.vsRaf = null;
+        const vp = vsGetViewport();
+        if (!vp) return;
+
+        const totalH = vsTotalHeight();
+        vsSpacer().style.height = totalH + 'px';
+
+        const vpH    = vp.clientHeight;
+        const scrollY = vp.scrollTop;
+
+        /* Visible range + overscan of 5 lines each side */
+        const firstVisible = Math.max(0, Math.floor((scrollY - VP_PAD) / LH) - 5);
+        const lastVisible  = Math.min(state.lines.length - 1,
+                             Math.ceil((scrollY + vpH - VP_PAD) / LH) + 5);
+
+        if (firstVisible === state.vsLastStart && vsRows().childElementCount > 0) return;
+        state.vsLastStart = firstVisible;
+
+        const rows = vsRows();
+        rows.style.top = (VP_PAD + firstVisible * LH) + 'px';
+
+        /* Build fragment for visible slice */
+        const frag = document.createDocumentFragment();
+        for (let i = firstVisible; i <= lastVisible; i++) {
+            const l = state.lines[i];
+            const d = document.createElement('div');
+            d.className = 'console-line ' + l.cls;
+            d.innerHTML = l.html;
+            frag.appendChild(d);
+        }
+        rows.innerHTML = '';
+        rows.appendChild(frag);
+    }
+
+    /* ── Auto-scroll: distance-from-bottom detection ─────
+       Treat the viewport as "at bottom" within a small
+       threshold so sub-pixel scroll jitter doesn't flap
+       the state. User scrolling away pauses auto-scroll;
+       scrolling back down (or hitting the jump pill)
+       resumes it. ──────────────────────────────────────── */
+    const AUTO_SCROLL_THRESHOLD = 56; // px
+
+    function vsDistanceFromBottom() {
+        const vp = vsGetViewport();
+        if (!vp) return Infinity;
+        return vsTotalHeight() - (vp.scrollTop + vp.clientHeight);
+    }
+
+    function syncAutoScrollUI() {
+        const btn = document.getElementById('autoScrollBtn');
+        if (!btn) return;
+        if (state.autoScroll) {
+            btn.className = 'auto-scroll-badge auto-scroll-on';
+            btn.textContent = '↓ Auto-scroll';
+        } else {
+            btn.className = 'auto-scroll-badge auto-scroll-off';
+            btn.textContent = '↓ Paused';
+        }
+    }
+
+    function updateJumpPill() {
+        const pill = document.getElementById('jumpBottomBtn');
+        const count = document.getElementById('jumpBottomCount');
+        if (!pill) return;
+        if (!state.autoScroll && state.unreadLines > 0) {
+            count.textContent = state.unreadLines > 99 ? '99+' : String(state.unreadLines);
+            pill.classList.add('visible');
+        } else {
+            pill.classList.remove('visible');
+        }
+    }
+
+    /* Scroll listener — re-renders the visible slice AND tracks
+       whether the user is parked at the bottom of the log. */
+    function vsOnScroll() {
+        const atBottom = vsDistanceFromBottom() <= AUTO_SCROLL_THRESHOLD;
+        if (atBottom !== state.autoScroll) {
+            state.autoScroll = atBottom;
+            syncAutoScrollUI();
+        }
+        if (atBottom) {
+            state.unreadLines = 0;
+            updateJumpPill();
+        }
+        if (state.vsRaf) return;
+        state.vsRaf = requestAnimationFrame(vsRender);
+    }
+
+    function vsInit() {
+        const vp = vsGetViewport();
+        vp.addEventListener('scroll', vsOnScroll, { passive: true });
+    }
+
+    /* ── Add lines to the buffer ─────────────────────── */
+    function batchAddLines(lines) {
+        for (const l of lines) {
+            let cls, html;
+            if (l.type === 'error') {
+                cls  = 'cl-error';
+                html = '✕ ' + escapeHtml(l.text);
+            } else if (l.type === 'system') {
+                cls  = 'cl-system';
+                html = '» ' + escapeHtml(l.text);
+            } else if (l.type === 'restart') {
+                cls  = 'cl-restart';
+                html = '↺ ' + escapeHtml(l.text);
+            } else {
+                cls  = 'cl-output';
+                html = '› ' + ansiToHtml(l.text);
+            }
+            state.lines.push({ cls, html });
+        }
+
+        /* Trim buffer to cap */
+        if (state.lines.length > CONFIG.MAX_CONSOLE_LINES) {
+            state.lines.splice(0, state.lines.length - CONFIG.MAX_CONSOLE_LINES);
+            state.vsLastStart = -1; // force full re-render
+        }
+
+        updateConsoleStats();
+        vsInvalidate();
+
+        if (state.autoScroll) {
+            requestAnimationFrame(() => {
+                const vp = vsGetViewport();
+                if (vp) vp.scrollTop = vsTotalHeight();
+            });
+        } else {
+            state.unreadLines += lines.length;
+            updateJumpPill();
+        }
+    }
+
+    function addConsoleLine(text, type = 'output') {
+        batchAddLines([{ text, type }]);
+    }
+
+    /* Throttled stats update */
+    let _statsRaf;
+    function updateConsoleStats() {
+        if (_statsRaf) return;
+        _statsRaf = requestAnimationFrame(() => {
+            _statsRaf = null;
+            document.getElementById('consoleStats').textContent = state.lines.length + ' lines';
+        });
+    }
+
+    function scrollToBottom() {
+        const vp = vsGetViewport();
+        if (vp) vp.scrollTop = vsTotalHeight();
+    }
+
+    /* Jump pill click: snap to bottom and resume auto-scroll */
+    function jumpToBottom() {
+        state.autoScroll = true;
+        state.unreadLines = 0;
+        syncAutoScrollUI();
+        updateJumpPill();
+        const vp = vsGetViewport();
+        if (vp) vp.scrollTo({ top: vsTotalHeight(), behavior: 'smooth' });
+    }
+
+    /* ── Auto-scroll toggle (manual button) ──────────── */
+    function toggleAutoScroll() {
+        state.autoScroll = !state.autoScroll;
+        syncAutoScrollUI();
+        if (state.autoScroll) {
+            state.unreadLines = 0;
+            updateJumpPill();
+            scrollToBottom();
+        }
+    }
+
+    /* ── Console clear ───────────────────────────────── */
+    function clearConsole() {
+        state.lines = [];
+        state.vsLastStart = -1;
+        state.unreadLines = 0;
+        updateJumpPill();
+        vsRows().innerHTML = '';
+        vsSpacer().style.height = '0';
+        addConsoleLine('Console cleared', 'system');
+        addConsoleLine('NEXUS Bot Console Ready', 'system');
+        if (!state.depsInstalled) {
+            addConsoleLine('📦 Dependencies are installing…', 'system');
+        } else {
+            addConsoleLine('Click Start to begin', 'system');
+        }
+        showToast('Console cleared');
+    }
+
+    /* ── Copy / Download logs ────────────────────────── */
+    async function copyLogs() {
+        const text = state.lines.map(l => {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = l.html;
+            return tmp.textContent;
+        }).join('\n');
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast('Copied ' + state.lines.length + ' lines');
+        } catch { showToast('Failed to copy', 'error'); }
+    }
+
+    function downloadLogs() {
+        const header = `# NEXUS Bot Console Logs\n# Bot: ${state.botName}\n# Generated: ${new Date().toISOString()}\n\n`;
+        const text   = state.lines.map(l => {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = l.html;
+            return tmp.textContent;
+        }).join('\n');
+        const blob = new Blob([header + text], { type: 'text/plain' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = `bot_${state.botId}_logs_${Date.now()}.txt`;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+        showToast('Downloaded ' + state.lines.length + ' lines');
+    }
+
+    /* ── Runtime counter ─────────────────────────────── */
+    function updateRuntime() {
+        if (!state.botStartTime) return;
+        const s = Math.floor((Date.now() - state.botStartTime) / 1000);
+        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+        let str = '';
+        if (h) str += h + 'h ';
+        if (m || h) str += m + 'm ';
+        str += sec + 's';
+        document.getElementById('runtimeStats').textContent = 'Runtime: ' + str;
+    }
+
+    /* ── File browser ────────────────────────────────── */
+    function getFileIcon(name) {
+        const ext = name.split('.').pop().toLowerCase();
+        return { py:'🐍', js:'📜', html:'🌐', css:'🎨', json:'📦',
+                 md:'📝', txt:'📄', yml:'⚙️', yaml:'⚙️', ini:'⚙️',
+                 jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🖼️', svg:'🖼️',
+                 zip:'📦', tar:'📦', gz:'📦', pdf:'📑',
+                 mp3:'🎵', mp4:'🎬', wav:'🎵' }[ext] || '📄';
+    }
+
+    function formatFileSize(b) {
+        if (b < 1024) return b + ' B';
+        if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+        return (b / 1048576).toFixed(1) + ' MB';
+    }
+
+    function shouldHideFile(name) {
+        return ['__pycache__','.git','.DS_Store','node_modules'].includes(name)
+            || name.endsWith('.pyc');
+    }
+
+    function filterFiles() {
+        clearTimeout(state.fileFilterTimeout);
+        state.fileFilterTimeout = setTimeout(() => {
+            const q = document.getElementById('fileSearch').value.toLowerCase();
+            let visible = 0;
+            document.querySelectorAll('.file-item:not(.folder-parent)').forEach(el => {
+                const n = el.querySelector('.name span')?.textContent.toLowerCase() || '';
+                const show = n.includes(q);
+                el.style.display = show ? 'flex' : 'none';
+                if (show) visible++;
+            });
+            const noRes = document.getElementById('noSearchResults');
+            if (!visible && q) {
+                if (!noRes) {
+                    const m = document.createElement('div');
+                    m.id = 'noSearchResults'; m.className = 'info-text';
+                    m.textContent = 'No files matching "' + q + '"';
+                    document.getElementById('fileBrowser').appendChild(m);
+                }
+            } else if (noRes) noRes.remove();
+        }, 250);
+    }
+
+    async function loadFileBrowser(path = '') {
+        try {
+            const r = await fetch(`/api/bots/${state.botId}/files?path=${encodeURIComponent(path)}`);
+            const d = await r.json();
+            if (d.error) {
+                document.getElementById('fileBrowser').innerHTML =
+                    `<div class="info-text">Error: ${escapeHtml(d.error)}</div>`;
+                return;
+            }
+            state.currentPath = d.current_path;
+
+            let crumb = `<a onclick="loadFileBrowser('')">root</a>`;
+            for (const c of d.breadcrumb)
+                crumb += `<span style="color:var(--muted);">/</span><a onclick="loadFileBrowser('${c.path.replace(/'/g,"\\'")}'">${escapeHtml(c.name)}</a>`;
+            document.getElementById('breadcrumb').innerHTML = crumb;
+
+            const TEXT_EXTS = ['.py','.js','.html','.css','.json','.txt','.md','.yml','.yaml','.xml','.sh','.env','.cfg','.ini'];
+            let html = '';
+            if (d.parent_path !== null)
+                html += `<div class="file-item folder folder-parent" onclick="loadFileBrowser('${d.parent_path}')">
+                            <div class="name">📁 .. (parent)</div></div>`;
+
+            const files = d.files.filter(f => !shouldHideFile(f.name));
+            if (!files.length)
+                html += '<div class="info-text">Empty. Upload or create a file.</div>';
+
+            for (const f of files) {
+                const icon = f.is_dir ? '📁' : getFileIcon(f.name);
+                const isTxt = TEXT_EXTS.some(e => f.name.endsWith(e));
+                const click = f.is_dir
+                    ? `loadFileBrowser('${f.path}')`
+                    : isTxt ? `editFile('${f.path}')` : `downloadFile('${f.path}')`;
+                html += `<div class="file-item ${f.is_dir ? 'folder' : ''}">
+                    <div class="name" onclick="${click}">
+                        <span>${icon}</span>
+                        <span>${escapeHtml(f.name)}</span>
+                        ${!f.is_dir ? `<span style="font-size:10px;color:var(--muted);">${f.size_text}</span>` : ''}
+                        ${!f.is_dir && !isTxt ? '<span style="font-size:10px;color:var(--yellow);">binary</span>' : ''}
+                    </div>
+                    <div class="file-actions">
+                        ${!f.is_dir
+                            ? isTxt
+                                ? `<button class="edit-btn" onclick="event.stopPropagation();editFile('${f.path}')">Edit</button>`
+                                : `<button class="edit-btn" onclick="event.stopPropagation();downloadFile('${f.path}')">Download</button>`
+                            : ''}
+                        <button class="delete-btn" onclick="event.stopPropagation();confirmDelete('${f.path}',${f.is_dir})">Delete</button>
+                    </div>
+                </div>`;
+            }
+            document.getElementById('fileBrowser').innerHTML = html;
+        } catch (e) {
+            document.getElementById('fileBrowser').innerHTML =
+                `<div class="info-text">Error: ${escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    async function downloadFile(p) {
+        window.location.href = `/api/bots/${state.botId}/download?path=${encodeURIComponent(p)}`;
+        showToast('Downloading: ' + p.split('/').pop());
+    }
+
+    async function editFile(p) {
+        try {
+            const r = await fetch(`/api/bots/${state.botId}/file?path=${encodeURIComponent(p)}`);
+            const d = await r.json();
+            if (d.error) { addConsoleLine('Error: ' + d.error, 'error'); return; }
+            state.currentEditFile = p;
+            document.getElementById('editorFilename').textContent = '✏ ' + p;
+            document.getElementById('editorContent').value = d.content;
+            document.getElementById('editorArea').style.display = 'block';
+            document.getElementById('editorContent').focus();
+            showToast('Opened: ' + p);
+        } catch (e) { addConsoleLine('Error: ' + e.message, 'error'); }
+    }
+
+    async function saveFile() {
+        if (!state.currentEditFile) return;
+        try {
+            const r = await fetch(`/api/bots/${state.botId}/file`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: state.currentEditFile, content: document.getElementById('editorContent').value })
+            });
+            const d = await r.json();
+            if (d.success) {
+                addConsoleLine('Saved: ' + state.currentEditFile, 'system');
+                showToast('Saved');
+                await loadFileBrowser(state.currentPath);
+            } else {
+                addConsoleLine('Save error: ' + d.error, 'error');
+                showToast('Error: ' + d.error, 'error');
+            }
+        } catch (e) { showToast('Failed: ' + e.message, 'error'); }
+    }
+
+    function closeEditor() {
+        document.getElementById('editorArea').style.display = 'none';
+        state.currentEditFile = null;
+        document.getElementById('editorContent').value = '';
+    }
+
+    function confirmDelete(p, isDir) {
+        document.getElementById('confirmTitle').textContent = 'Delete ' + (isDir ? 'folder' : 'file');
+        document.getElementById('confirmMessage').textContent = `Delete "${p}"? This cannot be undone.`;
+        const btn = document.getElementById('confirmButton');
+        const nb = btn.cloneNode(true);
+        btn.parentNode.replaceChild(nb, btn);
+        nb.onclick = () => { deleteFile(p, isDir); closeConfirmModal(); };
+        document.getElementById('confirmModal').style.display = 'flex';
+    }
+    function closeConfirmModal() { document.getElementById('confirmModal').style.display = 'none'; }
+
+    async function deleteFile(p, isDir) {
+        try {
+            const r = await fetch(`/api/bots/${state.botId}/file?path=${encodeURIComponent(p)}`, { method: 'DELETE' });
+            const d = await r.json();
+            if (d.success) {
+                addConsoleLine('Deleted: ' + p, 'system');
+                showToast('Deleted');
+                await loadFileBrowser(state.currentPath);
+                if (state.currentEditFile === p) closeEditor();
+            } else { showToast('Error: ' + d.error, 'error'); }
+        } catch (e) { showToast('Failed: ' + e.message, 'error'); }
+    }
+
+    function showNewFileModal() {
+        document.getElementById('newFileModal').style.display = 'flex';
+        document.getElementById('newFileName').focus();
+    }
+    function closeNewFileModal() {
+        document.getElementById('newFileModal').style.display = 'none';
+        document.getElementById('newFileName').value = '';
+    }
+
+    async function createNewFile() {
+        const name = document.getElementById('newFileName').value.trim();
+        if (!name) { showToast('Enter a filename', 'error'); return; }
+        const p = state.currentPath ? state.currentPath + '/' + name : name;
+        try {
+            const r = await fetch(`/api/bots/${state.botId}/file`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: p, content: `# ${name}\n# Created: ${new Date().toISOString()}\n\n` })
+            });
+            const d = await r.json();
+            if (d.success) {
+                closeNewFileModal();
+                await loadFileBrowser(state.currentPath);
+                const isTxt = ['.py','.js','.html','.css','.json','.txt','.md'].some(e => name.endsWith(e));
+                if (isTxt) editFile(p);
+                addConsoleLine('Created: ' + p, 'system');
+                showToast('Created: ' + name);
+            } else { showToast('Error: ' + d.error, 'error'); }
+        } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    /* ── Upload ──────────────────────────────────────── */
+    function showUploadModal() { document.getElementById('uploadModal').style.display = 'flex'; }
+    function closeUploadModal() {
+        document.getElementById('uploadModal').style.display = 'none';
+        document.getElementById('uploadList').innerHTML = '';
+        document.getElementById('fileInput').value = '';
+    }
+
+    async function uploadFiles(files) {
+        const list     = document.getElementById('uploadList');
+        const progBar  = document.getElementById('uploadProgress');
+        const autoRst  = document.getElementById('autoRestartToggle')?.checked ?? true;
+        progBar.style.display = 'block';
+        let anyRestarted = false;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const item = document.createElement('div');
+            item.className = 'upload-item';
+            item.innerHTML = `<div class="upload-item-name"><span>${getFileIcon(file.name)}</span><span>${escapeHtml(file.name)}</span><span style="color:var(--muted);font-size:10px;">(${formatFileSize(file.size)})</span></div><span class="upload-item-status status-uploading">Uploading…</span>`;
+            list.appendChild(item);
+
+            const fd = new FormData();
+            fd.append('path', state.currentPath ? state.currentPath + '/' + file.name : file.name);
+            fd.append('file', file);
+            if (autoRst) fd.append('auto_restart', 'true');
+
+            try {
+                const r = await fetch(`/api/bots/${state.botId}/upload_file`, { method: 'POST', body: fd });
+                const d = await r.json();
+                const s = item.querySelector('.upload-item-status');
+                if (d.success) {
+                    if (d.auto_restarted) {
+                        s.className = 'upload-item-status status-restarted'; s.textContent = '↺ Restarted';
+                        anyRestarted = true;
+                        addConsoleLine('Uploaded: ' + file.name + ' (auto-restarted)', 'restart');
+                        setTimeout(() => { refreshStatus(); fetchLogs(); }, 2000);
+                    } else {
+                        s.className = 'upload-item-status status-success'; s.textContent = '✓ Uploaded';
+                        addConsoleLine('Uploaded: ' + file.name, 'system');
+                    }
+                } else {
+                    s.className = 'upload-item-status status-error'; s.textContent = '✕ Failed';
+                    addConsoleLine('Upload failed: ' + file.name + ' — ' + d.error, 'error');
+                }
+            } catch (e) {
+                const s = item.querySelector('.upload-item-status');
+                s.className = 'upload-item-status status-error'; s.textContent = '✕ Error';
+                addConsoleLine('Upload error: ' + e.message, 'error');
+            }
+            document.getElementById('progressFill').style.width = ((i + 1) / files.length * 100) + '%';
+        }
+
+        progBar.style.display = 'none';
+        setTimeout(() => {
+            closeUploadModal();
+            loadFileBrowser(state.currentPath);
+            showToast(anyRestarted ? '↺ Bot restarted with new code' : 'Files uploaded');
+        }, 1200);
+    }
+
+    /* ── Bot control ─────────────────────────────────── */
+    async function controlBot(action) {
+        if (action === 'start' && !state.depsInstalled) {
+            showToast('Wait for dependencies to finish installing', 'error'); return;
+        }
+        const btn = document.getElementById(action + 'Btn');
+        if (!btn) return;
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>';
+        addConsoleLine((action === 'start' ? 'Starting' : action === 'stop' ? 'Stopping' : 'Restarting') + ' bot…', 'system');
+
+        try {
+            const r = await fetch(`/api/bots/${state.botId}/${action}`, { method: 'POST' });
+            const d = await r.json();
+            if (d.error) {
+                addConsoleLine('Failed: ' + d.error, 'error');
+                showToast('Failed: ' + d.error, 'error');
+            } else {
+                addConsoleLine('Bot ' + (d.status || action) + 'ed', 'system');
+                showToast('Bot ' + action + 'ed');
+                if (action === 'start') {
+                    state.botStartTime = Date.now();
+                    clearInterval(state.runtimeInterval);
+                    state.runtimeInterval = setInterval(updateRuntime, 1000);
+                } else if (action === 'stop') {
+                    state.botStartTime = null;
+                    clearInterval(state.runtimeInterval); state.runtimeInterval = null;
+                    document.getElementById('runtimeStats').textContent = 'Runtime: 0s';
+                } else if (action === 'restart') {
+                    state.botStartTime = Date.now();
+                    clearInterval(state.runtimeInterval);
+                    state.runtimeInterval = setInterval(updateRuntime, 1000);
+                }
+            }
+            await refreshStatus();
+            if (action === 'start' || action === 'restart') setTimeout(fetchLogs, 1000);
+        } catch (e) {
+            addConsoleLine('Failed: ' + e.message, 'error');
+            showToast('Error: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+    }
+
+    async function refreshStatus() {
+        try {
+            const r = await fetch(`/api/bots/${state.botId}/logs`);
+            const d = await r.json();
+            const badge = document.getElementById('statusBadge');
+            const text  = document.getElementById('statusText');
+            const live  = document.getElementById('liveIndicator');
+            if (d.status === 'running') {
+                text.textContent = 'RUNNING'; text.className = 'bot-status status-running';
+                badge.className = 'status-badge running';
+                live.innerHTML = '<span class="signal-bars"><span></span><span></span><span></span></span> Live — Running';
+            } else if (!state.depsInstalled) {
+                text.textContent = 'INSTALLING'; text.className = 'bot-status status-installing';
+                badge.className = 'status-badge installing';
+                live.innerHTML = '<span class="signal-bars" style="--g:var(--yellow)"><span style="background:var(--yellow)"></span><span style="background:var(--yellow)"></span><span style="background:var(--yellow)"></span></span> Installing deps';
+            } else {
+                text.textContent = 'STOPPED'; text.className = 'bot-status status-stopped';
+                badge.className = 'status-badge stopped';
+                live.innerHTML = '<span class="signal-bars off"><span></span><span></span><span></span></span> Offline';
+            }
+        } catch {}
+    }
+
+    async function fetchLogs() {
+        if (state.isRefreshing) return;
+        state.isRefreshing = true;
+        try {
+            const r = await fetch(`/api/bots/${state.botId}/logs`);
+            const d = await r.json();
+            if (d.error || !d.logs) return;
+            if (d.logs === state.lastLogContent) return;
+            state.lastLogContent = d.logs;
+            if (!d.logs && d.status === 'running') {
+                const hasWait = state.lines.some(l => l.html.includes('waiting'));
+                if (!hasWait) addConsoleLine('Bot running, waiting for output…', 'system');
+                return;
+            }
+            if (d.logs) {
+                const newLines = [];
+                for (const raw of d.logs.split('\n')) {
+                    const t = raw.trim();
+                    if (!t) continue;
+                    // Dedup against every line ever ingested from the server,
+                    // not just what's currently visible — so Clear can't cause
+                    // the backend's full log dump to look "new" again.
+                    if (state.seenLogLines.has(t)) continue;
+                    state.seenLogLines.add(t);
+                    let type = 'output';
+                    if (t.includes('Error') || t.includes('Failed') || t.includes('❌')) type = 'error';
+                    else if (t.includes('restart') || t.includes('🔄')) type = 'restart';
+                    else if (t.includes('✅') || t.includes('💡')) type = 'system';
+                    newLines.push({ text: t, type });
+                }
+                if (newLines.length) batchAddLines(newLines);
+            }
+        } catch {} finally { state.isRefreshing = false; }
+    }
+
+    async function refreshAll() {
+        addConsoleLine('Refreshing…', 'system');
+        await refreshStatus();
+        await loadFileBrowser(state.currentPath);
+        await fetchLogs();
+        addConsoleLine('Refresh complete', 'system');
+        showToast('All data refreshed');
+    }
+
+    async function checkDepsStatus() {
+        try {
+            const r = await fetch(`/api/bots/${state.botId}/deps_status`);
+            const d = await r.json();
+            if (d.deps_installed && !state.depsInstalled) {
+                state.depsInstalled = true;
+                document.getElementById('depsIndicator')?.remove();
+                ['startBtn','restartBtn'].forEach(id => {
+                    const b = document.getElementById(id);
+                    if (b) { b.disabled = false; b.title = ''; }
+                });
+                addConsoleLine('Dependencies installed! Click Start to begin.', 'system');
+                showToast('Dependencies installed');
+                clearInterval(state.depsInterval); state.depsInterval = null;
+            }
+        } catch {}
+    }
+
+    /* ── Drag & drop ─────────────────────────────────── */
+    const dropZone = document.getElementById('dropZone');
+    if (dropZone) {
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault(); dropZone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length) uploadFiles(files);
+        });
+    }
+    document.getElementById('fileInput')?.addEventListener('change', e => {
+        if (e.target.files.length) uploadFiles(Array.from(e.target.files));
+    });
+
+    /* ── Auto-refresh ─────────────────────────────────── */
+    let _refreshCount = 0;
+    async function autoRefresh() {
+        _refreshCount++;
+        await fetchLogs();
+        if (_refreshCount % 3 === 0) await loadFileBrowser(state.currentPath);
+        await refreshStatus();
+    }
+
+    /* ── Init ────────────────────────────────────────── */
+    function init() {
+        vsInit();
+
+        /* Seed console with boot messages */
+        batchAddLines([
+            { text: 'NEXUS Bot Console v3.1 Ready', type: 'system' },
+            { text: 'Bot ID: {{ bot.bot_id }}',     type: 'system' },
+            { text: 'Bot name: {{ bot.bot_name }}',  type: 'system' },
+            { text: 'Any file type supported • max 50 MB', type: 'system' },
+            { text: 'Upload main bot file to auto-restart',  type: 'system' },
+            {% if not bot.deps_installed %}
+            { text: 'Dependencies are being installed in background…', type: 'system' },
+            { text: 'Please wait before starting',          type: 'system' },
+            {% else %}
+            { text: 'Dependencies ready. Click Start.',     type: 'system' },
+            {% endif %}
+            { text: 'Ctrl+S to save files, Ctrl+L to clear', type: 'system' },
+        ]);
+
+        loadFileBrowser('');
+        refreshStatus();
+        fetchLogs();
+
+        if (!state.depsInstalled) {
+            state.depsInterval = setInterval(checkDepsStatus, CONFIG.DEPS_CHECK_INTERVAL);
+            checkDepsStatus();
+        }
+        state.refreshInterval = setInterval(autoRefresh, CONFIG.AUTO_REFRESH_INTERVAL);
+
+        document.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's' && state.currentEditFile) {
+                e.preventDefault(); saveFile();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+                e.preventDefault(); clearConsole();
+            }
+            if (e.key === 'Escape' && state.currentEditFile) closeEditor();
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+            }
+        });
+
+        document.getElementById('newFileName')?.addEventListener('keypress', e => {
+            if (e.key === 'Enter') createNewFile();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            clearInterval(state.refreshInterval);
+            clearInterval(state.depsInterval);
+            clearInterval(state.runtimeInterval);
+        });
+    }
+
+    init();
+    </script>
+</body>
+</html>

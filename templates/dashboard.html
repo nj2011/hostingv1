@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard • NEXUS BotHost</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg:       #0a0c0e;
+            --surface:  #111417;
+            --panel:    #15181c;
+            --border:   #262b30;
+            --border-hi:#3a4147;
+            --text:     #dcdfd9;
+            --muted:    #6b7570;
+            --accent:   #ffb454;
+            --accent2:  #5eead4;
+            --green:    #7ee787;
+            --red:      #ff6b6b;
+            --yellow:   #ffb454;
+            --purple:   #c8a8ff;
+            --radius:   4px;
+            --font-ui:  'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            --font-mono:'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+        }
+
+        body { font-family: var(--font-ui); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        /* ── Nav ──────────────────────────────────────── */
+        nav {
+            background: var(--surface);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        nav::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+        }
+
+        .nav-brand {
+            font-family: var(--font-mono);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .nav-brand::after { content: '_'; color: var(--accent2); animation: blink 1.1s step-end infinite; }
+        @keyframes blink { 50% { opacity: .3; } }
+
+        .nav-user { display: flex; gap: 16px; align-items: center; font-size: 13px; color: var(--muted); font-family: var(--font-mono); }
+
+        .logout-btn {
+            background: var(--panel);
+            color: var(--text);
+            padding: 7px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            font-size: 12px;
+            font-family: var(--font-mono);
+            text-decoration: none;
+            transition: border-color .15s, color .15s;
+        }
+        .logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+        /* ── Layout ───────────────────────────────────── */
+        .container { max-width: 1300px; margin: 28px auto; padding: 0 24px; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 26px; flex-wrap: wrap; gap: 14px; }
+        .header h1 { font-size: 22px; font-weight: 700; color: #f0f1ed; }
+
+        .btn {
+            padding: 9px 18px;
+            border: 1px solid transparent;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            transition: filter .12s, opacity .12s, transform .08s;
+            white-space: nowrap;
+        }
+        .btn:hover:not(:disabled) { filter: brightness(1.12); }
+        .btn:active:not(:disabled) { filter: brightness(.9); transform: translateY(1px); }
+
+        .add-bot-btn { background: var(--accent2); color: #06201c; }
+
+        .bots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 18px;
+        }
+
+        .bot-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            transition: border-color .15s;
+        }
+        .bot-card:hover { border-color: var(--border-hi); }
+
+        .bot-name {
+            font-size: 17px;
+            font-weight: 700;
+            color: #f0f1ed;
+            font-family: var(--font-mono);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .bot-id { color: var(--muted); font-size: 11px; font-family: var(--font-mono); margin-bottom: 12px; }
+
+        .bot-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: var(--radius);
+            font-size: 10px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
+        }
+        .status-running { background: rgba(34,197,94,.15); color: var(--green); border: 1px solid rgba(34,197,94,.3); }
+        .status-stopped { background: rgba(239,68,68,.15); color: var(--red); border: 1px solid rgba(239,68,68,.3); }
+
+        .deps-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 9px;
+            border-radius: var(--radius);
+            font-size: 10px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            background: rgba(255,180,84,.12);
+            color: var(--accent);
+            border: 1px solid rgba(255,180,84,.3);
+        }
+        .spinner {
+            width: 10px; height: 10px;
+            border: 2px solid rgba(255,180,84,.3);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .messages-count { font-size: 12px; color: var(--muted); font-family: var(--font-mono); margin-bottom: 16px; }
+
+        .bot-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+        .bot-actions .btn { flex: 1; padding: 8px; text-decoration: none; text-align: center; }
+
+        .btn-start   { background: var(--green);  color: #06140a; }
+        .btn-stop    { background: var(--yellow); color: #1a0f00; }
+        .btn-console { background: var(--accent2); color: #06201c; }
+        .btn-delete  { background: rgba(239,68,68,.12); color: var(--red); border-color: rgba(239,68,68,.3); }
+        .btn-upload  { background: var(--panel); color: var(--purple); border-color: var(--border); width: 100%; margin-top: 10px; }
+
+        .empty-state {
+            text-align: center;
+            padding: 70px 20px;
+            color: var(--muted);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            grid-column: 1 / -1;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius);
+        }
+        .empty-state p { margin-bottom: 8px; }
+
+        /* ── Modal ───────────────────────────────────── */
+        .modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.8);
+            justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: var(--panel);
+            padding: 28px;
+            border-radius: var(--radius);
+            width: 90%; max-width: 460px;
+            border: 1px solid var(--border-hi);
+        }
+        .modal-content h2 {
+            margin-bottom: 16px;
+            font-family: var(--font-mono);
+            font-size: 16px;
+            letter-spacing: .02em;
+            color: #f0f1ed;
+        }
+        .modal-content input, .modal-content select {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 10px 0;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            outline: none;
+            transition: border-color .15s;
+        }
+        .modal-content input:focus { border-color: var(--accent2); }
+        .modal-content input[type="file"] { padding: 8px; font-family: var(--font-ui); }
+        .modal-content button {
+            background: var(--accent2);
+            color: #06201c;
+            padding: 10px;
+            border: none;
+            border-radius: var(--radius);
+            width: 100%;
+            margin-top: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
+        .modal-content button:hover { filter: brightness(1.1); }
+        .modal-content button[type="button"] { background: var(--panel); color: var(--muted); border: 1px solid var(--border); }
+
+        .file-info { font-size: 11.5px; color: var(--muted); margin-top: 6px; font-family: var(--font-mono); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+    </style>
+
+    <!-- ── Smooth Page Transitions ─────────────────────────────────────────── -->
+    <style>
+        @keyframes _nexus-fade-in {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes _nexus-fade-out {
+            from { opacity: 1; }
+            to   { opacity: 0; }
+        }
+        ::view-transition-old(root) { animation: 180ms ease _nexus-fade-out; }
+        ::view-transition-new(root) { animation: 220ms ease _nexus-fade-in; }
+        body { view-transition-name: root; }
+        body.nexus-leaving  { animation: 160ms ease forwards _nexus-fade-out; pointer-events: none; }
+        body.nexus-entering { animation: 220ms ease _nexus-fade-in; }
+    </style>
+    <script>
+        (function () {
+            window.addEventListener('DOMContentLoaded', function () {
+                document.body.classList.add('nexus-entering');
+            });
+            document.addEventListener('click', function (e) {
+                const link = e.target.closest('a[href]');
+                if (!link) return;
+                const href = link.getAttribute('href');
+                if (!href || href.startsWith('#') || href.startsWith('javascript') ||
+                    link.target === '_blank' || link.hasAttribute('download')) return;
+                try {
+                    const url = new URL(href, location.origin);
+                    if (url.origin !== location.origin) return;
+                } catch (_) { return; }
+                if (document.startViewTransition) {
+                    e.preventDefault();
+                    document.startViewTransition(function () { location.href = link.href; });
+                    return;
+                }
+                e.preventDefault();
+                document.body.classList.add('nexus-leaving');
+                setTimeout(function () { location.href = link.href; }, 160);
+            });
+        })();
+    </script>
+    <!-- ──────────────────────────────────────────────────────────────────── -->
+</head>
+<body>
+    <nav>
+        <div class="nav-brand">🤖 NEXUS BOTHOST</div>
+        <div class="nav-user">
+            <span>👋 {{ username }}</span>
+            <a href="/logout" class="logout-btn">🚪 Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h1>Your Bots</h1>
+            <button class="btn add-bot-btn" onclick="showAddBotModal()">+ Add New Bot</button>
+        </div>
+
+        <div class="bots-grid" id="botsGrid">
+            {% if bots %}
+                {% for bot in bots %}
+                <div class="bot-card" data-bot-id="{{ bot.bot_id }}">
+                    <div class="bot-name">
+                        {{ bot.bot_name }}
+                        {% if not bot.deps_installed %}
+                        <span class="deps-badge"><span class="spinner"></span> Installing deps</span>
+                        {% endif %}
+                    </div>
+                    <div class="bot-id">ID: {{ bot.bot_id }}</div>
+                    <div class="bot-status status-{{ bot.status }}">{{ bot.status|upper }}</div>
+                    <div class="messages-count">📨 {{ bot.total_messages }} messages processed</div>
+                    <div class="bot-actions">
+                        <button class="btn btn-start" onclick="controlBot('{{ bot.bot_id }}', 'start')">▶ Start</button>
+                        <button class="btn btn-stop" onclick="controlBot('{{ bot.bot_id }}', 'stop')">⏹ Stop</button>
+                        <a href="/bot_console/{{ bot.bot_id }}" class="btn btn-console">📟 Console</a>
+                        <button class="btn btn-delete" onclick="deleteBot('{{ bot.bot_id }}')">🗑 Delete</button>
+                    </div>
+                    <button class="btn btn-upload" onclick="showUploadModal('{{ bot.bot_id }}')">📤 Upload New Version</button>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <p>No bots yet. Click "Add New Bot" to get started!</p>
+                    <p>You'll need to upload a Python file for your bot.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Add Bot Modal -->
+    <div id="addBotModal" class="modal">
+        <div class="modal-content">
+            <h2>Add New Bot</h2>
+            <form id="addBotForm" enctype="multipart/form-data">
+                <input type="text" id="botName" placeholder="Bot Name" required>
+                <input type="text" id="botToken" placeholder="Bot Token (from @BotFather)" required>
+                <input type="file" id="botFile" accept=".py" required>
+                <div class="file-info">📄 Upload your bot's Python file (max 100MB)</div>
+                <div class="file-info">⚙️ Dependencies will be auto-installed</div>
+                <button type="submit">Create Bot</button>
+                <button type="button" onclick="closeModal()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <h2>Upload New Bot Version</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="file" id="uploadFile" accept=".py" required>
+                <div class="file-info">📄 Upload your updated Python file (max 100MB)</div>
+                <div class="file-info">⚙️ Dependencies will be auto-installed</div>
+                <button type="submit">Upload</button>
+                <button type="button" onclick="closeUploadModal()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentBotId = null;
+
+        function showAddBotModal() {
+            document.getElementById('addBotModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('addBotModal').style.display = 'none';
+            document.getElementById('addBotForm').reset();
+        }
+
+        function showUploadModal(botId) {
+            currentBotId = botId;
+            document.getElementById('uploadModal').style.display = 'flex';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('uploadForm').reset();
+            currentBotId = null;
+        }
+
+        document.getElementById('addBotForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('bot_name', document.getElementById('botName').value);
+            formData.append('bot_token', document.getElementById('botToken').value);
+            formData.append('bot_file', document.getElementById('botFile').files[0]);
+
+            const response = await fetch('/api/bots', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                alert('Bot created! Dependencies are being installed in the background.');
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert('Failed to create bot: ' + (error.error || 'Unknown error'));
+            }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('bot_file', document.getElementById('uploadFile').files[0]);
+
+            const response = await fetch(`/api/bots/${currentBotId}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                alert('Bot code updated! Dependencies are being installed.');
+                closeUploadModal();
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert('Failed to upload: ' + (error.error || 'Unknown error'));
+            }
+        });
+
+        async function controlBot(botId, action) {
+            const response = await fetch(`/api/bots/${botId}/${action}`, {method: 'POST'});
+            const result = await response.json();
+            if (response.ok) {
+                if (result.status === 'deps_installing') {
+                    alert('Dependencies are still installing. Please wait a moment and try again.');
+                } else {
+                    location.reload();
+                }
+            } else {
+                alert(`Failed to ${action} bot`);
+            }
+        }
+
+        async function deleteBot(botId) {
+            if (confirm('Are you sure you want to delete this bot? This will also delete the uploaded file.')) {
+                const response = await fetch(`/api/bots/${botId}`, {method: 'DELETE'});
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to delete bot');
+                }
+            }
+        }
+
+        window.onclick = function(event) {
+            const addModal = document.getElementById('addBotModal');
+            const uploadModal = document.getElementById('uploadModal');
+            if (event.target === addModal) closeModal();
+            if (event.target === uploadModal) closeUploadModal();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Settings • NEXUS BotHost Admin</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg:       #0a0c0e;
+            --surface:  #111417;
+            --panel:    #15181c;
+            --border:   #262b30;
+            --border-hi:#3a4147;
+            --text:     #dcdfd9;
+            --muted:    #6b7570;
+            --accent:   #ffb454;
+            --accent2:  #5eead4;
+            --green:    #7ee787;
+            --red:      #ff6b6b;
+            --yellow:   #ffb454;
+            --purple:   #c8a8ff;
+            --radius:   4px;
+            --font-ui:  'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            --font-mono:'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+        }
+
+        body { font-family: var(--font-ui); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        nav {
+            background: var(--surface);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        nav::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+        }
+
+        .nav-brand {
+            font-family: var(--font-mono);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .nav-brand::after { content: '_'; color: var(--accent2); animation: blink 1.1s step-end infinite; }
+        .nav-brand .tag {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            background: rgba(255,107,107,.1);
+            color: var(--red);
+            padding: 2px 7px;
+            border-radius: 2px;
+            border: 1px solid rgba(255,107,107,.3);
+            letter-spacing: 0.1em;
+            margin-left: 4px;
+        }
+        @keyframes blink { 50% { opacity: .3; } }
+
+        .back-link {
+            color: var(--text);
+            text-decoration: none;
+            padding: 7px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            font-size: 12px;
+            font-family: var(--font-mono);
+            transition: border-color .15s, color .15s;
+        }
+        .back-link:hover { border-color: var(--accent2); color: var(--accent2); }
+
+        .container { max-width: 1200px; margin: 28px auto; padding: 0 24px; }
+
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f0f1ed;
+            margin-bottom: 18px;
+            border-left: 3px solid var(--accent2);
+            padding-left: 14px;
+            font-family: var(--font-mono);
+        }
+
+        .info-text { color: var(--muted); margin-top: 8px; font-size: 13px; font-family: var(--font-mono); }
+
+        .settings-list { margin: 18px 4px; }
+        .settings-list li {
+            list-style: none;
+            color: var(--text);
+            font-size: 13px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .settings-list li:last-child { border-bottom: none; }
+        .settings-list .icon { color: var(--accent2); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+    </style>
+
+    <!-- ── Smooth Page Transitions ─────────────────────────────────────────── -->
+    <style>
+        @keyframes _nexus-fade-in {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes _nexus-fade-out {
+            from { opacity: 1; }
+            to   { opacity: 0; }
+        }
+        ::view-transition-old(root) { animation: 180ms ease _nexus-fade-out; }
+        ::view-transition-new(root) { animation: 220ms ease _nexus-fade-in; }
+        body { view-transition-name: root; }
+        body.nexus-leaving  { animation: 160ms ease forwards _nexus-fade-out; pointer-events: none; }
+        body.nexus-entering { animation: 220ms ease _nexus-fade-in; }
+    </style>
+    <script>
+        (function () {
+            window.addEventListener('DOMContentLoaded', function () {
+                document.body.classList.add('nexus-entering');
+            });
+            document.addEventListener('click', function (e) {
+                const link = e.target.closest('a[href]');
+                if (!link) return;
+                const href = link.getAttribute('href');
+                if (!href || href.startsWith('#') || href.startsWith('javascript') ||
+                    link.target === '_blank' || link.hasAttribute('download')) return;
+                try {
+                    const url = new URL(href, location.origin);
+                    if (url.origin !== location.origin) return;
+                } catch (_) { return; }
+                if (document.startViewTransition) {
+                    e.preventDefault();
+                    document.startViewTransition(function () { location.href = link.href; });
+                    return;
+                }
+                e.preventDefault();
+                document.body.classList.add('nexus-leaving');
+                setTimeout(function () { location.href = link.href; }, 160);
+            });
+        })();
+    </script>
+    <!-- ──────────────────────────────────────────────────────────────────── -->
+</head>
+<body>
+    <nav>
+        <div class="nav-brand">🤖 NEXUS BOTHOST <span class="tag">ADMIN</span></div>
+        <a href="/admin" class="back-link">← Back to Dashboard</a>
+    </nav>
+    <div class="container">
+        <div class="section">
+            <div class="section-title">⚙️ Platform Settings</div>
+            <div class="info-text">Settings panel coming soon. Configure:</div>
+            <ul class="settings-list">
+                <li><span class="icon">▸</span> Bot execution limits</li>
+                <li><span class="icon">▸</span> Resource allocation</li>
+                <li><span class="icon">▸</span> Logging configuration</li>
+                <li><span class="icon">▸</span> Security policies</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
