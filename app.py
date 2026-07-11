@@ -12,7 +12,7 @@ import shutil
 import psutil
 import platform
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, send_from_directory
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file
 from werkzeug.utils import secure_filename
 from functools import wraps
 import bcrypt
@@ -35,12 +35,10 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
 LOG_FOLDER = os.path.join(BASE_DIR, 'logs')
 INSTALLED_MODULES_FOLDER = os.path.join(BASE_DIR, 'installed_modules')
 INSTALLED_CACHE_FILE = os.path.join(BASE_DIR, 'installed_packages.json')
-STATIC_FOLDER = os.path.join(BASE_DIR, 'static')  # New: for JS/CSS files
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(LOG_FOLDER, exist_ok=True)
 os.makedirs(INSTALLED_MODULES_FOLDER, exist_ok=True)
-os.makedirs(STATIC_FOLDER, exist_ok=True)  # New: create static folder
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -417,6 +415,11 @@ class BotManager:
         bot_file_path = os.path.join(bot_dir, filename)
         bot_file.save(bot_file_path)
         
+        # No config.py / .env is written to disk. BOT_TOKEN, TELEGRAM_BOT_TOKEN,
+        # BOT_NAME, and BOT_ID are injected directly into the subprocess
+        # environment in start_bot() below, so uploaded bots just read them
+        # with os.environ.get(...) — nothing to generate or keep in sync here.
+        
         # Save to database
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -506,20 +509,6 @@ class BotManager:
                 result["user_id"] = row[9]
             return result
         return None
-    
-    @staticmethod
-    def get_bot_info(bot_id, user_id=None):
-        """Get bot info for API responses"""
-        bot = BotManager.get_bot(bot_id, user_id)
-        if not bot:
-            return None
-        return {
-            "bot_id": bot["bot_id"],
-            "bot_name": bot["bot_name"],
-            "status": bot["status"],
-            "deps_installed": bot.get("deps_installed", 0) == 1,
-            "total_messages": bot.get("total_messages", 0)
-        }
     
     @staticmethod
     def check_deps_status(bot_id, user_id=None):
@@ -857,13 +846,6 @@ class Database:
         return None
     
     @staticmethod
-    def get_current_user():
-        """Get current user from session"""
-        if 'user_id' in session:
-            return Database.get_user_by_id(session['user_id'])
-        return None
-    
-    @staticmethod
     def update_last_login(user_id):
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -1022,7 +1004,7 @@ def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
-            return jsonify({'error': 'Unauthorized'}), 401
+            return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
 
@@ -1030,30 +1012,23 @@ def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
-            return jsonify({'error': 'Unauthorized'}), 401
+            return redirect(url_for('login'))
         user = Database.get_user_by_id(session['user_id'])
         if not user or not user.get('is_admin'):
-            return jsonify({'error': 'Admin access required'}), 403
+            return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated
 
-# ========== SPA ROUTES ==========
+# ========== ROUTES ==========
 @app.route('/')
 def index():
     if 'user_id' in session:
         user = Database.get_user_by_id(session['user_id'])
         if user and user.get('is_admin'):
-            # Serve SPA with admin context
-            return render_template('spa.html', initial_path='/admin')
-        return render_template('spa.html', initial_path='/dashboard')
-    return render_template('spa.html', initial_path='/login')
+            return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
 
-# Serve the JavaScript SPA file
-@app.route('/app.js')
-def serve_spa_js():
-    return send_from_directory(STATIC_FOLDER, 'app.js')
-
-# ========== LEGACY ROUTES (for backward compatibility) ==========
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -1276,22 +1251,6 @@ def export_data():
         logger.error(f"Export error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# ========== API ENDPOINTS ==========
-
-# User API
-@app.route('/api/user', methods=['GET'])
-@login_required
-def api_get_user():
-    """Get current user info"""
-    user = Database.get_user_by_id(session['user_id'])
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    return jsonify({
-        'id': user['id'],
-        'username': user['username'],
-        'is_admin': user['is_admin']
-    })
-
 @app.route('/api/admin/stats', methods=['GET'])
 @admin_required
 def api_admin_stats():
@@ -1393,7 +1352,7 @@ def admin_restart_bot(bot_id):
     Database.log_activity(session['user_id'], session['username'], 'admin_restart_bot', bot_id, None, request.remote_addr, level='info')
     return jsonify(result)
 
-# ========== BOT API ENDPOINTS ==========
+# ========== API ENDPOINTS ==========
 @app.route('/api/bots', methods=['GET'])
 @login_required
 def api_list_bots():
@@ -1421,15 +1380,6 @@ def api_create_bot():
         return jsonify(bot), 201
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
-
-@app.route('/api/bots/<bot_id>/info', methods=['GET'])
-@login_required
-def api_bot_info(bot_id):
-    """Get bot info for console"""
-    bot = BotManager.get_bot_info(bot_id, session['user_id'])
-    if not bot:
-        return jsonify({'error': 'Bot not found'}), 404
-    return jsonify(bot)
 
 @app.route('/api/bots/<bot_id>', methods=['DELETE'])
 @login_required
